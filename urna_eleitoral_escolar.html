@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Urna Eleitoral Escolar — Simulação Educacional</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for Admin Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#1d4ed8',
+              600: '#1e40af',
+              700: '#1d3557',
+              900: '#0f172a'
+            },
+            urna: {
+              bg: '#2b2d42',
+              keypad: '#1e1e24',
+              screen: '#eef2f5',
+              green: '#2a9d8f',
+              orange: '#f4a261',
+              white: '#f8f9fa'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['Courier New', 'Courier', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom CSS for Urna look and smooth animations */
+    .urna-screen-shadow {
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.15);
+    }
+    .key-btn {
+      transition: all 0.08s ease;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .key-btn:active {
+      transform: translateY(2px) scale(0.98);
+      filter: brightness(0.9);
+    }
+    .digit-box {
+      width: 42px;
+      height: 52px;
+      border: 2px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: bold;
+      background: white;
+      border-radius: 6px;
+    }
+    .blink {
+      animation: blinker 1s linear infinite;
+    }
+    @keyframes blinker {
+      50% { opacity: 0; }
+    }
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+    }
+    /* Hide scrollbars for clean UI */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+
+  <!-- Top Educational Disclaimer Banner -->
+  <header class="bg-amber-500 text-slate-900 text-xs font-semibold py-1.5 px-4 text-center border-b border-amber-600 flex items-center justify-between no-print z-50">
+    <div class="flex items-center justify-center gap-2 mx-auto">
+      <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+      <span>PROJETO ACADÊMICO — SIMULAÇÃO ELEITORAL ESCOLAR (Sem vínculo com TSE/órgãos oficiais)</span>
+    </div>
+    <div id="demo-indicator" class="hidden md:flex items-center gap-1 bg-amber-700 text-white text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider">
+      <i data-lucide="flask-conical" class="w-3 h-3"></i> Modo Demo Ativo
+    </div>
+  </header>
+
+  <!-- Global Main Navigation -->
+  <nav class="bg-brand-900 text-white shadow-md no-print sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-brand-500 flex items-center justify-center text-white font-bold shadow-md">
+            <i data-lucide="vote" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-lg leading-none tracking-tight">VOTO ESCOLAR</h1>
+            <p class="text-[11px] text-slate-300 font-medium">Plataforma Educacional de Cidadania</p>
+          </div>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="hidden md:flex items-center space-x-1">
+          <button onclick="app.switchView('terminal')" id="nav-btn-terminal" class="nav-tab px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-800 transition flex items-center gap-2">
+            <i data-lucide="box" class="w-4 h-4"></i> Terminal de Votação
+          </button>
+          <button onclick="app.switchView('admin')" id="nav-btn-admin" class="nav-tab px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-800 transition flex items-center gap-2">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Painel Administrativo
+          </button>
+          <button onclick="app.switchView('fiscal')" id="nav-btn-fiscal" class="nav-tab px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-800 transition flex items-center gap-2">
+            <i data-lucide="eye" class="w-4 h-4"></i> Acompanhamento
+          </button>
+          <button onclick="app.switchView('edu')" id="nav-btn-edu" class="nav-tab px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-800 transition flex items-center gap-2">
+            <i data-lucide="book-open" class="w-4 h-4"></i> Guia Cidadão
+          </button>
+        </div>
+
+        <!-- Mobile Menu Toggle -->
+        <div class="md:hidden">
+          <button onclick="app.toggleMobileNav()" class="p-2 rounded-md hover:bg-slate-800 text-slate-200">
+            <i data-lucide="menu" class="w-6 h-6"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobile-nav" class="hidden md:hidden bg-brand-900 border-t border-slate-800 px-4 pt-2 pb-4 space-y-1">
+      <button onclick="app.switchView('terminal'); app.toggleMobileNav();" class="w-full text-left px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2">
+        <i data-lucide="box" class="w-4 h-4"></i> Terminal de Votação
+      </button>
+      <button onclick="app.switchView('admin'); app.toggleMobileNav();" class="w-full text-left px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Painel Administrativo
+      </button>
+      <button onclick="app.switchView('fiscal'); app.toggleMobileNav();" class="w-full text-left px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2">
+        <i data-lucide="eye" class="w-4 h-4"></i> Acompanhamento em Tempo Real
+      </button>
+      <button onclick="app.switchView('edu'); app.toggleMobileNav();" class="w-full text-left px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2">
+        <i data-lucide="book-open" class="w-4 h-4"></i> Guia Político Educacional
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER FOR VIEWS -->
+  <main class="flex-1 flex flex-col relative max-w-7xl w-full mx-auto p-4 sm:p-6">
+
+    <!-- ==================== VIEW 1: TERMINAL DE VOTAÇÃO ==================== -->
+    <section id="view-terminal" class="app-view flex-1 flex flex-col justify-center items-center py-4">
+      
+      <!-- Voter Code Entry Panel (Start Screen) -->
+      <div id="terminal-login" class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-slate-200 text-center">
+        <div class="w-16 h-16 bg-blue-50 text-brand-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100">
+          <i data-lucide="fingerprint" class="w-8 h-8"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-800 mb-1">Simulação Eleitoral Escolar</h2>
+        <p class="text-sm text-slate-500 mb-6">Aprendendo cidadania e democracia através da prática.</p>
+
+        <div id="terminal-status-banner" class="mb-6 p-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="terminal-status-text">Votação Liberada para Estudantes</span>
+        </div>
+
+        <form id="voter-code-form" onsubmit="app.terminal.startVoting(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">Digite seu Código de Participação</label>
+            <input type="text" id="voter-code-input" required placeholder="Ex: 1001" class="w-full text-center text-2xl font-mono tracking-widest py-3 px-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none uppercase font-bold" autocomplete="off">
+            <p class="text-[11px] text-slate-400 mt-1">Solicite seu código ao professor/fiscal presente.</p>
+          </div>
+          <button type="submit" id="btn-start-vote" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 px-6 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-base">
+            <i data-lucide="play" class="w-5 h-5"></i> Iniciar Votação
+          </button>
+        </form>
+
+        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+          <button onclick="app.terminal.toggleDemoMode()" class="hover:text-brand-500 underline flex items-center gap-1">
+            <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i> Testar no Modo Demo
+          </button>
+          <span id="election-name-tag">Carregando...</span>
+        </div>
+      </div>
+
+      <!-- Urna Voting Machine Simulator -->
+      <div id="urna-machine" class="hidden w-full max-w-4xl bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border-4 border-slate-700 flex flex-col md:flex-row">
+        
+        <!-- Left: Urna Screen Display -->
+        <div class="flex-1 bg-slate-200 p-4 sm:p-6 flex flex-col justify-between min-h-[420px] relative urna-screen-shadow">
+          <!-- Screen Header -->
+          <div class="flex items-center justify-between border-b border-slate-300 pb-3">
+            <div>
+              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">PROJETO ELEITORAL ESCOLAR</span>
+              <span id="urna-position-title" class="text-lg sm:text-xl font-extrabold text-slate-800 uppercase">CARGO</span>
+            </div>
+            <div id="urna-[step-indicator]" class="text-xs font-mono font-bold bg-slate-300 text-slate-700 px-2.5 py-1 rounded">
+              Etapa <span id="urna-current-step">1</span>/<span id="urna-total-steps">5</span>
+            </div>
+          </div>
+
+          <!-- Active Vote Screen (Normal State) -->
+          <div id="urna-vote-screen" class="my-4 flex-1 flex flex-col justify-center">
+            
+            <!-- Message Block for Null/Blank/Prompt -->
+            <div id="urna-candidate-info" class="space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-slate-600 uppercase">Seu Voto:</span>
+                <span id="urna-digits-container" class="flex gap-2">
+                  <!-- Digits injected dynamically -->
+                </span>
+              </div>
+
+              <!-- Candidate Details Card -->
+              <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-300 flex items-center gap-4 min-h-[140px]">
+                <div id="urna-photo-box" class="w-24 h-28 bg-slate-100 rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                  <i data-lucide="user" class="w-12 h-12 text-slate-300"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div id="urna-candidate-name" class="text-lg font-bold text-slate-800 truncate">--</div>
+                  <div id="urna-candidate-party" class="text-xs text-slate-500 font-semibold mt-0.5">Turma: <span id="urna-candidate-turma">--</span></div>
+                  <div id="urna-candidate-desc" class="text-xs text-slate-600 mt-2 line-clamp-2 italic">Digite o número do seu candidato...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Null Warning Screen -->
+            <div id="urna-null-notice" class="hidden text-center py-6 bg-amber-50 rounded-xl border border-amber-200 p-4">
+              <i data-lucide="alert-triangle" class="w-10 h-10 text-amber-500 mx-auto mb-2"></i>
+              <h3 class="font-bold text-amber-800 text-lg">NÚMERO NÃO ENCONTRADO</h3>
+              <p class="text-xs text-amber-700 mt-1">Seu voto será computado como <span class="font-bold underline">NULO</span> se confirmar.</p>
+            </div>
+
+            <!-- Blank Warning Screen -->
+            <div id="urna-blank-notice" class="hidden text-center py-6 bg-blue-50 rounded-xl border border-blue-200 p-4">
+              <i data-lucide="info" class="w-10 h-10 text-brand-500 mx-auto mb-2"></i>
+              <h3 class="font-bold text-brand-800 text-lg">VOTO EM BRANCO</h3>
+              <p class="text-xs text-brand-700 mt-1">Você escolheu votar em branco para este cargo.</p>
+            </div>
+          </div>
+
+          <!-- Final Screen (FIM) -->
+          <div id="urna-fim-screen" class="hidden absolute inset-0 bg-slate-100 flex flex-col items-center justify-center p-6 text-center z-20">
+            <div class="text-6xl font-black text-slate-800 tracking-widest mb-2 blink">F I M</div>
+            <p class="text-slate-600 font-medium mb-4">Votação Concluída com Sucesso!</p>
+            <div class="p-3 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold border border-emerald-300 flex items-center gap-2">
+              <i data-lucide="check-circle-2" class="w-4 h-4"></i> Obrigado por exercer sua cidadania escolar!
+            </div>
+          </div>
+
+          <!-- Instructions Bar Footer -->
+          <div class="border-t border-slate-300 pt-3 text-[11px] text-slate-600 flex justify-between items-center">
+            <div>Aperte a tecla:<br><span class="font-bold text-emerald-700">CONFIRMA</span> para PROSSEGUIR<br><span class="font-bold text-amber-700">CORRIGE</span> para REINICIAR</div>
+            <button onclick="app.audio.testBeep()" class="text-[10px] text-slate-400 hover:text-slate-600 flex items-center gap-1">
+              <i data-lucide="volume-2" class="w-3 h-3"></i> Testar Áudio
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Physical Keypad Simulator -->
+        <div class="w-full md:w-80 bg-slate-900 p-6 flex flex-col justify-between border-t md:border-t-0 md:border-l border-slate-700">
+          <div class="text-center mb-4">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">SIMULAÇÃO ELEITORAL</span>
+            <div class="w-8 h-1 bg-brand-500 mx-auto rounded-full mt-1"></div>
+          </div>
+
+          <!-- Keypad Grid -->
+          <div class="grid grid-cols-3 gap-3 my-auto max-w-[240px] mx-auto">
+            <button onclick="app.terminal.pressKey('1')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">1</button>
+            <button onclick="app.terminal.pressKey('2')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">2</button>
+            <button onclick="app.terminal.pressKey('3')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">3</button>
+            
+            <button onclick="app.terminal.pressKey('4')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">4</button>
+            <button onclick="app.terminal.pressKey('5')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">5</button>
+            <button onclick="app.terminal.pressKey('6')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">6</button>
+            
+            <button onclick="app.terminal.pressKey('7')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">7</button>
+            <button onclick="app.terminal.pressKey('8')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">8</button>
+            <button onclick="app.terminal.pressKey('9')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">9</button>
+            
+            <div></div>
+            <button onclick="app.terminal.pressKey('0')" class="key-btn bg-slate-800 hover:bg-slate-700 text-white font-bold text-2xl h-14 rounded-xl shadow-lg border-b-4 border-slate-950 flex items-center justify-center">0</button>
+            <div></div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="grid grid-cols-3 gap-2 mt-6">
+            <button onclick="app.terminal.pressBlank()" class="key-btn bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs h-12 rounded-lg shadow-md border-b-4 border-slate-300 flex items-center justify-center uppercase">BRANCO</button>
+            <button onclick="app.terminal.pressCorrige()" class="key-btn bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs h-12 rounded-lg shadow-md border-b-4 border-amber-700 flex items-center justify-center uppercase">CORRIGE</button>
+            <button onclick="app.terminal.pressConfirma()" class="key-btn bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs h-14 -mt-2 rounded-lg shadow-lg border-b-4 border-emerald-800 flex items-center justify-center uppercase">CONFIRMA</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 2: PAINEL ADMINISTRATIVO ==================== -->
+    <section id="view-admin" class="app-view hidden flex-1 flex flex-col space-y-6">
+      
+      <!-- Admin Login Overlay Modal (If unauthenticated) -->
+      <div id="admin-login-modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-slate-200">
+          <div class="text-center mb-6">
+            <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center mx-auto mb-2">
+              <i data-lucide="lock" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800">Acesso Restrito</h3>
+            <p class="text-xs text-slate-500">Painel de Administração e Gestão</p>
+          </div>
+          <form onsubmit="app.admin.login(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuário</label>
+              <input type="text" id="admin-user" required value="admin" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Senha</label>
+              <input type="password" id="admin-pass" required value="admin123" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500">
+              <p class="text-[10px] text-slate-400 mt-1">Padrão acadêmico: admin / admin123</p>
+            </div>
+            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-lg text-sm shadow transition">
+              Entrar no Painel
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Admin Top Header Toolbar -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="sliders" class="w-5 h-5 text-brand-500"></i> Gestão da Eleição Escolar
+          </h2>
+          <p class="text-xs text-slate-500">Configure cargos, candidatos, eleitores e acompanhe os indicadores em tempo real.</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="app.admin.switchTab('dashboard')" class="admin-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-500 text-white shadow-sm">Dashboard</button>
+          <button onclick="app.admin.switchTab('candidates')" class="admin-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Candidatos</button>
+          <button onclick="app.admin.switchTab('positions')" class="admin-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Cargos</button>
+          <button onclick="app.admin.switchTab('voters')" class="admin-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Eleitores</button>
+          <button onclick="app.admin.switchTab('results')" class="admin-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Apuração/Resultados</button>
+          <button onclick="app.admin.switchTab('settings')" class="admin-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Configurações</button>
+        </div>
+      </div>
+
+      <!-- TAB 1: DASHBOARD ANALYTICS -->
+      <div id="admin-tab-dashboard" class="admin-subtab space-y-6">
+        <!-- Status KPI Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <div class="text-xs font-semibold text-slate-500">Status da Votação</div>
+            <div id="kpi-status" class="text-lg font-bold text-emerald-600 mt-1 flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> EM ANDAMENTO
+            </div>
+          </div>
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <div class="text-xs font-semibold text-slate-500">Participação</div>
+            <div id="kpi-participation" class="text-2xl font-black text-brand-600 mt-1">0%</div>
+            <p id="kpi-participation-sub" class="text-[10px] text-slate-400">0 de 0 eleitores</p>
+          </div>
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <div class="text-xs font-semibold text-slate-500">Total Votos Registrados</div>
+            <div id="kpi-votes" class="text-2xl font-black text-slate-800 mt-1">0</div>
+          </div>
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <div class="text-xs font-semibold text-slate-500">Votos Válidos vs Nulos/Brancos</div>
+            <div class="text-sm font-bold text-slate-700 mt-1">
+              Válidos: <span id="kpi-valid" class="text-emerald-600">0</span> | Brancos: <span id="kpi-blank" class="text-slate-500">0</span> | Nulos: <span id="kpi-null" class="text-amber-600">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+            <h3 class="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+              <i data-lucide="pie-chart" class="w-4 h-4 text-brand-500"></i> Distribuição Global dos Votos
+            </h3>
+            <div class="h-64 relative">
+              <canvas id="chart-vote-types"></canvas>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+            <h3 class="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-4 h-4 text-brand-500"></i> Participação Eleitoral por Turma
+            </h3>
+            <div class="h-64 relative">
+              <canvas id="chart-class-participation"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: CANDIDATES MANAGEMENT -->
+      <div id="admin-tab-candidates" class="admin-subtab hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="text-base font-bold text-slate-800">Candidatos Cadastrados</h3>
+          <button onclick="app.admin.openCandidateModal()" class="bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs px-4 py-2 rounded-lg shadow flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-4 h-4"></i> + Novo Candidato
+          </button>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase">
+              <tr>
+                <th class="p-3">Foto</th>
+                <th class="p-3">Número</th>
+                <th class="p-3">Nome / Nome Urna</th>
+                <th class="p-3">Cargo</th>
+                <th class="p-3">Turma</th>
+                <th class="p-3">Status</th>
+                <th class="p-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="candidate-table-body" class="divide-y divide-slate-100">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: POSITIONS MANAGEMENT -->
+      <div id="admin-tab-positions" class="admin-subtab hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Configuração de Cargos</h3>
+            <p class="text-xs text-slate-500">Defina a ordem e quantidade de dígitos para a votação.</p>
+          </div>
+          <button onclick="app.admin.openPositionModal()" class="bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs px-4 py-2 rounded-lg shadow flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-4 h-4"></i> + Adicionar Cargo
+          </button>
+        </div>
+
+        <div id="positions-list" class="space-y-2">
+          <!-- Positions list with reordering capabilities -->
+        </div>
+      </div>
+
+      <!-- TAB 4: VOTERS MANAGEMENT -->
+      <div id="admin-tab-voters" class="admin-subtab hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Códigos de Eleitores / Estudantes</h3>
+            <p class="text-xs text-slate-500">Gere códigos de acesso individualizados para impedir votos duplicados.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="app.admin.generateBatchVoters()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3 py-2 rounded-lg shadow flex items-center gap-1">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Gerar Lote de Códigos
+            </button>
+            <button onclick="app.admin.openVoterModal()" class="bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs px-3 py-2 rounded-lg shadow flex items-center gap-1">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> + Novo Código
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase">
+              <tr>
+                <th class="p-3">Código de Participação</th>
+                <th class="p-3">Status</th>
+                <th class="p-3">Data/Hora do Voto</th>
+                <th class="p-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="voter-table-body" class="divide-y divide-slate-100">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 5: RESULTS & TALLYING (APURAÇÃO) -->
+      <div id="admin-tab-results" class="admin-subtab hidden space-y-6">
+        
+        <!-- Apuração Control Section -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">Apuração dos Votos</h3>
+            <p class="text-xs text-slate-500">Processe os dados registrados e emita o relatório oficial final.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="app.admin.runTallyAnimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow flex items-center gap-2">
+              <i data-lucide="calculator" class="w-4 h-4"></i> Iniciar Processo de Apuração
+            </button>
+            <button onclick="app.admin.exportResults('csv')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-2.5 rounded-xl border border-slate-300 flex items-center gap-1.5">
+              <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+            </button>
+            <button onclick="window.print()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-2.5 rounded-xl border border-slate-300 flex items-center gap-1.5">
+              <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Relatório
+            </button>
+          </div>
+        </div>
+
+        <!-- Tally Animation Box -->
+        <div id="tally-progress-box" class="hidden bg-slate-900 text-white p-6 rounded-xl text-center space-y-3">
+          <div class="inline-block p-3 bg-brand-500 rounded-full animate-bounce">
+            <i data-lucide="cpu" class="w-6 h-6"></i>
+          </div>
+          <h4 id="tally-status-text" class="font-mono text-sm tracking-wide text-brand-300">PROCESSANDO REGISTROS DE VOTOS...</h4>
+          <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden max-w-md mx-auto">
+            <div id="tally-progress-bar" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+          </div>
+        </div>
+
+        <!-- Position Results Container -->
+        <div id="results-container" class="space-y-6">
+          <!-- Rendered dynamically per position -->
+        </div>
+      </div>
+
+      <!-- TAB 6: SETTINGS & CONTROLS -->
+      <div id="admin-tab-settings" class="admin-subtab hidden space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- Election Config Form -->
+          <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <i data-lucide="settings" class="w-4 h-4 text-brand-500"></i> Configuração da Eleição
+            </h3>
+            <form onsubmit="app.admin.saveElectionSettings(event)" class="space-y-3 text-xs">
+              <div>
+                <label class="block font-bold text-slate-600 mb-1">Nome da Eleição</label>
+                <input type="text" id="setting-name" required class="w-full px-3 py-2 border rounded-lg">
+              </div>
+              <div>
+                <label class="block font-bold text-slate-600 mb-1">Descrição Educacional</label>
+                <textarea id="setting-desc" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea>
+              </div>
+              <div>
+                <label class="block font-bold text-slate-600 mb-1">Status da Votação</label>
+                <select id="setting-status" class="w-full px-3 py-2 border rounded-lg font-bold">
+                  <option value="IN_PROGRESS">EM ANDAMENTO (Aberto)</option>
+                  <option value="PAUSED">PAUSADA (Bloqueado)</option>
+                  <option value="ENDED">ENCERRADA (Finalizado)</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-2 pt-2">
+                <input type="checkbox" id="setting-hide-live" class="rounded border-slate-300 text-brand-500 focus:ring-brand-500">
+                <label for="setting-hide-live" class="font-semibold text-slate-700">Ocultar contagem parcial durante a votação (Privacidade)</label>
+              </div>
+              <button type="submit" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-2 rounded-lg shadow">
+                Salvar Configurações
+              </button>
+            </form>
+          </div>
+
+          <!-- Danger Zone & Maintenance -->
+          <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2 text-rose-600">
+              <i data-lucide="shield-alert" class="w-4 h-4"></i> Ações Avançadas e Reset
+            </h3>
+            <p class="text-xs text-slate-500">Utilize os botões abaixo para recarregar dados fictícios de demonstração ou zerar os votos registrados.</p>
+            
+            <div class="space-y-2 pt-2">
+              <button onclick="app.admin.loadDemoSeedData()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs py-2.5 rounded-lg shadow flex items-center justify-center gap-2">
+                <i data-lucide="database" class="w-4 h-4"></i> Carregar Candidatos & Dados de Demonstração
+              </button>
+              <button onclick="app.admin.openResetModal()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs py-2.5 rounded-lg flex items-center justify-center gap-2">
+                <i data-lucide="trash-2" class="w-4 h-4"></i> Zerar Votação (Reset Duplo)
+              </button>
+            </div>
+
+            <!-- Audit Logs Summary -->
+            <div class="mt-4 pt-4 border-t border-slate-100">
+              <h4 class="text-xs font-bold text-slate-700 mb-2">Trilha de Auditoria do Sistema</h4>
+              <div id="audit-logs-list" class="text-[10px] font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-200 max-h-32 overflow-y-auto space-y-1 text-slate-600">
+                <!-- Audit lines -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==================== VIEW 3: CENTRAL DE ACOMPANHAMENTO ==================== -->
+    <section id="view-fiscal" class="app-view hidden flex-1 flex flex-col space-y-6">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="eye" class="w-6 h-6 text-brand-500"></i> Central de Acompanhamento — Fiscais & Professores
+          </h2>
+          <p class="text-xs text-slate-500">Monitoramento pedagógico da participação em tempo real.</p>
+        </div>
+        <div class="text-right">
+          <span class="text-xs font-bold uppercase text-slate-400 block">Status Atual</span>
+          <span id="fiscal-status-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> em Votação
+          </span>
+        </div>
+      </div>
+
+      <!-- Live Monitoring Stats Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <span class="text-xs font-bold text-slate-400 uppercase">Progresso da Votação</span>
+          <div class="my-4">
+            <div id="fiscal-percent-text" class="text-4xl font-black text-slate-800">0%</div>
+            <div class="w-full bg-slate-100 rounded-full h-3 mt-2 overflow-hidden border border-slate-200">
+              <div id="fiscal-bar" class="bg-brand-500 h-full w-0 transition-all duration-500"></div>
+            </div>
+          </div>
+          <span class="text-xs text-slate-500"><span id="fiscal-voted-count">0</span> de <span id="fiscal-total-count">0</span> eleitores participaram</span>
+        </div>
+
+        <!-- Position Selector Tab -->
+        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold text-slate-800">Parciais por Cargo</h3>
+            <p id="fiscal-privacy-notice" class="hidden text-[11px] text-amber-700 bg-amber-50 px-2.5 py-1 rounded border border-amber-200 font-semibold">
+              <i data-lucide="eye-off" class="w-3 h-3 inline"></i> Parciais ocultas conforme configuração da eleição.
+            </p>
+          </div>
+
+          <!-- Position Tabs Pills -->
+          <div id="fiscal-position-tabs" class="flex gap-2 overflow-x-auto pb-2 mb-4 border-b border-slate-100">
+            <!-- Dynamic position tabs -->
+          </div>
+
+          <!-- Live Candidates List for selected position -->
+          <div id="fiscal-candidates-list" class="space-y-2 flex-1 overflow-y-auto max-h-64">
+            <!-- Dynamic candidate progress lines -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 4: GUIA EDUCACIONAL ==================== -->
+    <section id="view-edu" class="app-view hidden flex-1 flex flex-col space-y-6">
+      <div class="bg-brand-900 text-white p-8 rounded-2xl shadow-xl border border-brand-800 text-center relative overflow-hidden">
+        <div class="relative z-10 max-w-2xl mx-auto space-y-3">
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-brand-700/60 rounded-full text-xs font-bold text-brand-100 uppercase tracking-widest border border-brand-600">
+            <i data-lucide="book-open" class="w-3.5 h-3.5"></i> Conscientização Democrática
+          </div>
+          <h2 class="text-3xl font-black tracking-tight">Como Funciona Uma Eleição Escolar?</h2>
+          <p class="text-sm text-slate-300">Entenda os conceitos fundamentais de democracia, cidadania, representatividade e o processo de escolha dos nossos representantes.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-2">
+          <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center font-bold">1</div>
+          <h3 class="font-bold text-slate-800">Conhecer as Propostas</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">Avalie o histórico e as ideias dos candidatos para a escola ou comunidade. A escolha consciente fortalece a todos.</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-2">
+          <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center font-bold">2</div>
+          <h3 class="font-bold text-slate-800">Voto Válido, Branco e Nulo</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">Voto válido é o destinado a um candidato. O voto em branco indica ausência de preferência. O voto nulo registra a digitação de um número não existente.</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-2">
+          <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center font-bold">3</div>
+          <h3 class="font-bold text-slate-800">Sua Participação Importa</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">Exercer o direito de voto é o pilar da democracia. Na escola, aprendemos a fiscalizar e cobrar compromissos.</p>
+        </div>
+      </div>
+
+      <!-- Educational Card Details -->
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+        <h3 class="text-base font-bold text-slate-800">Sobre o Projeto "Urna Eleitoral Escolar"</h3>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Esta aplicação foi desenvolvida exclusivamente como recurso didático acadêmico para simulações eleitorais em escolas do Ensino Fundamental e Médio. Seu objetivo é permitir que alunos vivenciem a jornada de votação eletrônica em ambiente seguro, aprendendo de forma prática sobre a importância do sufrágio universal.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: Candidate Form -->
+  <div id="modal-candidate" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="modal-candidate-title" class="font-bold text-slate-800 text-base">Cadastrar Candidato</h3>
+        <button onclick="app.admin.closeModal('modal-candidate')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="app.admin.saveCandidate(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="cand-id">
+        <div>
+          <label class="block font-bold text-slate-600 mb-1">Cargo</label>
+          <select id="cand-position" required onchange="app.admin.updateDigitHint()" class="w-full px-3 py-2 border rounded-lg">
+            <!-- Dynamic positions -->
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-600 mb-1">Nome Completo</label>
+          <input type="text" id="cand-fullname" required class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-600 mb-1">Nome de Urna</label>
+          <input type="text" id="cand-ballotname" required class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">Número <span id="cand-digit-hint" class="text-brand-500 font-normal"></span></label>
+            <input type="text" id="cand-number" required class="w-full px-3 py-2 border rounded-lg font-mono font-bold">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">Turma/Série</label>
+            <input type="text" id="cand-turma" required placeholder="Ex: 9º Ano A" class="w-full px-3 py-2 border rounded-lg">
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-600 mb-1">Foto do Candidato (URL ou Imagem)</label>
+          <input type="text" id="cand-photo" placeholder="https://exemplo.com/foto.jpg ou deixe em branco para avatar" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-600 mb-1">Apresentação / Propostas</label>
+          <textarea id="cand-desc" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-2.5 rounded-lg shadow">
+          Salvar Candidato
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Position Form -->
+  <div id="modal-position" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="modal-position-title" class="font-bold text-slate-800 text-base">Configurar Cargo</h3>
+        <button onclick="app.admin.closeModal('modal-position')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="app.admin.savePosition(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="pos-id">
+        <div>
+          <label class="block font-bold text-slate-600 mb-1">Nome do Cargo</label>
+          <input type="text" id="pos-name" required placeholder="Ex: Prefeito" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">Qtd. Dígitos</label>
+            <input type="number" id="pos-digits" min="1" max="5" required value="2" class="w-full px-3 py-2 border rounded-lg">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">Votos Permitidos</label>
+            <input type="number" id="pos-votes" min="1" max="2" required value="1" class="w-full px-3 py-2 border rounded-lg">
+          </div>
+        </div>
+        <button type="submit" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-2.5 rounded-lg shadow">
+          Salvar Cargo
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Voter Form -->
+  <div id="modal-voter" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-slate-800 text-base">Cadastrar Código de Eleitor</h3>
+        <button onclick="app.admin.closeModal('modal-voter')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="app.admin.saveVoter(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-600 mb-1">Código Único de Participação</label>
+          <input type="text" id="voter-code-new" required placeholder="Ex: 1050" class="w-full px-3 py-2 border rounded-lg font-mono font-bold uppercase">
+        </div>
+        <button type="submit" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-2.5 rounded-lg shadow">
+          Cadastrar Código
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Reset Confirmation Safety -->
+  <div id="modal-reset" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-200 space-y-4">
+      <div class="text-center">
+        <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-2">
+          <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+        </div>
+        <h3 class="font-extrabold text-slate-800 text-lg">Atenção: Reset Duplo de Votação</h3>
+        <p class="text-xs text-slate-500 mt-1">Esta ação apagará **TODOS** os votos registrados na simulação atual. Esta ação não poderá ser desfeita.</p>
+      </div>
+      <div class="space-y-2 text-xs">
+        <label class="block font-bold text-slate-700">Digite <span class="font-mono font-bold text-rose-600">CONFIRMAR</span> para prosseguir:</label>
+        <input type="text" id="reset-confirm-word" class="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono uppercase">
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="app.admin.closeModal('modal-reset')" class="px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Cancelar</button>
+        <button onclick="app.admin.executeReset()" class="px-4 py-2 rounded-lg text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 shadow">Executar Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Disclaimer Footer -->
+  <footer class="bg-slate-900 text-slate-400 text-xs py-4 px-4 text-center border-t border-slate-800 mt-auto no-print">
+    <p>Urna Eleitoral Escolar v1.0 — Ferramenta Acadêmica de Educação Democrática.</p>
+    <p class="text-[10px] text-slate-500 mt-0.5">Sem nenhum vínculo institucional com o TSE ou órgãos da Justiça Eleitoral.</p>
+  </footer>
+
+  <script>
+    /* ==========================================================================
+       STORAGE SERVICE LAYER (ABSTRACTION FOR LOCALSTORAGE / FUTURE SUPABASE)
+       ========================================================================== */
+    class StorageService {
+      constructor() {
+        this.STORAGE_KEY = 'urna_escolar_db_v1';
+        this.init();
+      }
+
+      /* FUTURE SUPABASE INTEGRATION HOOK:
+         In Phase 2, replace LocalStorage read/writes with Supabase Client calls:
+         const { data, error } = await supabase.from('elections').select('*')
+      */
+
+      init() {
+        if (!localStorage.getItem(this.STORAGE_KEY)) {
+          const defaultData = this.getSeedData();
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(defaultData));
+        }
+      }
+
+      getSeedData() {
+        return {
+          election: {
+            id: 'elec-2026',
+            name: 'Simulação Eleitoral Escolar 2026',
+            description: 'Projeto acadêmico de conscientização e exercício prático do processo democrático.',
+            type: 'Estadual/Federal',
+            status: 'IN_PROGRESS', // IN_PROGRESS, PAUSED, ENDED
+            hideLiveResults: false,
+            updatedAt: new Date().toISOString()
+          },
+          positions: [
+            { id: 'pos-1', name: 'Deputado Estadual', order: 1, digits: 5, votesAllowed: 1, active: true },
+            { id: 'pos-2', name: 'Deputado Federal', order: 2, digits: 4, votesAllowed: 1, active: true },
+            { id: 'pos-3', name: 'Senador', order: 3, digits: 3, votesAllowed: 1, active: true },
+            { id: 'pos-4', name: 'Governador', order: 4, digits: 2, votesAllowed: 1, active: true },
+            { id: 'pos-5', name: 'Presidente', order: 5, digits: 2, votesAllowed: 1, active: true }
+          ],
+          candidates: [
+            { id: 'cand-1', name: 'Alice Silveira', ballotName: 'Alice da Ciência', number: '11000', positionId: 'pos-1', className: '9º Ano A', description: 'Incentivo a projetos de ciência na escola.', photo: '', active: true },
+            { id: 'cand-2', name: 'Bruno Mendes', ballotName: 'Bruno dos Esportes', number: '22000', positionId: 'pos-1', className: '9º Ano B', description: 'Melhorias para quadra poliesportiva.', photo: '', active: true },
+            
+            { id: 'cand-3', name: 'Carla Dias', ballotName: 'Carla da Cultura', number: '1000', positionId: 'pos-2', className: '1º Ano Médio', description: 'Teatro e feiras de conhecimento.', photo: '', active: true },
+            { id: 'cand-4', name: 'Diego Costa', ballotName: 'Diego da Tecnologia', number: '2000', positionId: 'pos-2', className: '2º Ano Médio', description: 'Inclusão digital e robótica.', photo: '', active: true },
+            
+            { id: 'cand-5', name: 'Eduarda Ramos', ballotName: 'Eduarda do Grêmio', number: '100', positionId: 'pos-3', className: '3º Ano Médio', description: 'Liderança estudantil e sustentabilidade.', photo: '', active: true },
+            { id: 'cand-6', name: 'Felipe Rocha', ballotName: 'Felipe do Meio Ambiente', number: '200', positionId: 'pos-3', className: '3º Ano Médio', description: 'Horta comunitária e reciclagem.', photo: '', active: true },
+            
+            { id: 'cand-7', name: 'Gabriel Alves', ballotName: 'Gabriel Renovação', number: '15', positionId: 'pos-4', className: '2º Ano Médio', description: 'Melhorias nas áreas comuns da escola.', photo: '', active: true },
+            { id: 'cand-8', name: 'Helena Lima', ballotName: 'Helena Integração', number: '25', positionId: 'pos-4', className: '3º Ano Médio', description: 'Apoio aos novos alunos.', photo: '', active: true },
+            
+            { id: 'cand-9', name: 'Igor Santos', ballotName: 'Igor para Presidente', number: '11', positionId: 'pos-5', className: '3º Ano Médio', description: 'União e representatividade de todos.', photo: '', active: true },
+            { id: 'cand-10', name: 'Julia Martins', ballotName: 'Julia pela Escola', number: '22', positionId: 'pos-5', className: '3º Ano Médio', description: 'Mais eventos culturais e esportivos.', photo: '', active: true }
+          ],
+          voters: [
+            { id: 'v-1001', code: '1001', voted: false, votedAt: null },
+            { id: 'v-1002', code: '1002', voted: false, votedAt: null },
+            { id: 'v-1003', code: '1003', voted: false, votedAt: null },
+            { id: 'v-1004', code: '1004', voted: false, votedAt: null },
+            { id: 'v-1005', code: '1005', voted: false, votedAt: null }
+          ],
+          votes: [],
+          auditLogs: [
+            { timestamp: new Date().toISOString(), action: 'SISTEMA_INICIALIZADO', details: 'Base de dados inicial criada.' }
+          ]
+        };
+      }
+
+      getData() {
+        try {
+          return JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || this.getSeedData();
+        } catch (e) {
+          console.error("Erro ao ler dados:", e);
+          return this.getSeedData();
+        }
+      }
+
+      saveData(data) {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+      }
+
+      logAction(action, details) {
+        const db = this.getData();
+        db.auditLogs.unshift({
+          timestamp: new Date().toISOString(),
+          action,
+          details
+        });
+        this.saveData(db);
+      }
+    }
+
+    /* ==========================================================================
+       AUDIO SERVICE LAYER (SYNTHESIZED WEB AUDIO API - 100% ORIGINAL SOUNDS)
+       ========================================================================== */
+    class AudioService {
+      constructor() {
+        this.ctx = null;
+      }
+
+      initContext() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+      }
+
+      // Keypress Beep
+      playKeyBeep() {
+        try {
+          this.initContext();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(500, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.06);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.06);
+        } catch(e) {}
+      }
+
+      // Corrige Beep
+      playCorrigeBeep() {
+        try {
+          this.initContext();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.12);
+        } catch(e) {}
+      }
+
+      // Intermediary Confirm Chord
+      playConfirmBeep() {
+        try {
+          this.initContext();
+          if (!this.ctx) return;
+          const notes = [523.25, 659.25]; // C5, E5
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + (idx * 0.08));
+            gain.gain.setValueAtTime(0.15, this.ctx.currentTime + (idx * 0.08));
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + (idx * 0.08) + 0.15);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(this.ctx.currentTime + (idx * 0.08));
+            osc.stop(this.ctx.currentTime + (idx * 0.08) + 0.15);
+          });
+        } catch(e) {}
+      }
+
+      // Final Machine Signature Beep (Original C5-E5-G5-C6 Chime)
+      playFinalUrnaBeep() {
+        try {
+          this.initContext();
+          if (!this.ctx) return;
+          const chord = [523.25, 659.25, 783.99, 1046.50]; // Musical Arpeggio
+          chord.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + (i * 0.12));
+            gain.gain.setValueAtTime(0.2, this.ctx.currentTime + (i * 0.12));
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + (i * 0.12) + 0.3);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(this.ctx.currentTime + (i * 0.12));
+            osc.stop(this.ctx.currentTime + (i * 0.12) + 0.3);
+          });
+        } catch(e) {}
+      }
+
+      testBeep() {
+        this.playFinalUrnaBeep();
+      }
+    }
+
+    /* ==========================================================================
+       TERMINAL VOTING CONTROLLER
+       ========================================================================== */
+    class TerminalController {
+      constructor(app) {
+        this.app = app;
+        this.activeVoter = null;
+        this.isDemo = false;
+        this.currentStepIndex = 0;
+        this.currentDigits = "";
+        this.isBlank = false;
+        this.activePositions = [];
+        this.currentPosition = null;
+        this.votesBuffer = [];
+      }
+
+      init() {
+        this.resetTerminalState();
+      }
+
+      toggleDemoMode() {
+        this.isDemo = !this.isDemo;
+        const indicator = document.getElementById('demo-indicator');
+        if (this.isDemo) {
+          indicator.classList.remove('hidden');
+          this.app.toast('Modo Demonstração ativado. Seus votos não afetarão o resultado real.');
+        } else {
+          indicator.classList.add('hidden');
+          this.app.toast('Modo Demonstração desativado.');
+        }
+      }
+
+      startVoting(event) {
+        event.preventDefault();
+        const codeInput = document.getElementById('voter-code-input').value.trim().toUpperCase();
+        if (!codeInput) return;
+
+        const db = this.app.storage.getData();
+
+        // Check Election status
+        if (db.election.status === 'PAUSED') {
+          this.app.toast('A votação está temporariamente PAUSADA pelo fiscal.');
+          return;
+        }
+        if (db.election.status === 'ENDED') {
+          this.app.toast('A votação desta eleição já foi ENCERRADA.');
+          return;
+        }
+
+        if (!this.isDemo) {
+          // Check if voter code exists
+          let voter = db.voters.find(v => v.code === codeInput);
+          if (!voter) {
+            this.app.toast('Código de participação não encontrado. Solicite ao professor.');
+            return;
+          }
+          if (voter.voted) {
+            this.app.toast('Este código já registrou voto anteriormente.');
+            return;
+          }
+          this.activeVoter = voter;
+        } else {
+          this.activeVoter = { id: 'demo-user', code: 'DEMO', voted: false };
+        }
+
+        // Get Active sorted positions
+        this.activePositions = db.positions
+          .filter(p => p.active)
+          .sort((a, b) => a.order - b.order);
+
+        if (this.activePositions.length === 0) {
+          this.app.toast('Nenhum cargo ativo cadastrado para votação.');
+          return;
+        }
+
+        this.currentStepIndex = 0;
+        this.votesBuffer = [];
+        
+        // Show Urna UI
+        document.getElementById('terminal-login').classList.add('hidden');
+        document.getElementById('urna-machine').classList.remove('hidden');
+        document.getElementById('urna-fim-screen').classList.add('hidden');
+
+        this.loadCurrentStep();
+      }
+
+      loadCurrentStep() {
+        this.currentDigits = "";
+        this.isBlank = false;
+        this.currentPosition = this.activePositions[this.currentStepIndex];
+
+        document.getElementById('urna-position-title').innerText = this.currentPosition.name;
+        document.getElementById('urna-current-step').innerText = this.currentStepIndex + 1;
+        document.getElementById('urna-total-steps').innerText = this.activePositions.length;
+
+        this.renderDigitBoxes();
+        this.updateCandidateDisplay();
+      }
+
+      renderDigitBoxes() {
+        const container = document.getElementById('urna-digits-container');
+        if (!container || !this.currentPosition) return;
+        container.innerHTML = "";
+        const max = this.currentPosition.digits;
+
+        for (let i = 0; i < max; i++) {
+          const char = this.currentDigits[i] || "";
+          const box = document.createElement('div');
+          box.className = `digit-box ${!char && i === this.currentDigits.length ? 'border-brand-500 blink' : ''}`;
+          box.innerText = char;
+          container.appendChild(box);
+        }
+      }
+
+      pressKey(num) {
+        if (!this.currentPosition) return;
+        if (this.isBlank) return;
+        if (this.currentDigits.length < this.currentPosition.digits) {
+          this.currentDigits += num;
+          this.app.audio.playKeyBeep();
+          this.renderDigitBoxes();
+          this.updateCandidateDisplay();
+        }
+      }
+
+      pressBlank() {
+        if (!this.currentPosition) return;
+        this.app.audio.playCorrigeBeep();
+        this.currentDigits = "";
+        this.isBlank = true;
+        this.renderDigitBoxes();
+        this.updateCandidateDisplay();
+      }
+
+      pressCorrige() {
+        if (!this.currentPosition) return;
+        this.app.audio.playCorrigeBeep();
+        this.currentDigits = "";
+        this.isBlank = false;
+        this.renderDigitBoxes();
+        this.updateCandidateDisplay();
+      }
+
+      updateCandidateDisplay() {
+        if (!this.currentPosition) return;
+
+        const infoBlock = document.getElementById('urna-candidate-info');
+        const nullNotice = document.getElementById('urna-null-notice');
+        const blankNotice = document.getElementById('urna-blank-notice');
+
+        const nameEl = document.getElementById('urna-candidate-name');
+        const turmaEl = document.getElementById('urna-candidate-turma');
+        const descEl = document.getElementById('urna-candidate-desc');
+        const photoBox = document.getElementById('urna-photo-box');
+
+        // Reset display state
+        nullNotice.classList.add('hidden');
+        blankNotice.classList.add('hidden');
+        infoBlock.classList.remove('hidden');
+
+        if (this.isBlank) {
+          blankNotice.classList.remove('hidden');
+          nameEl.innerText = "VOTO EM BRANCO";
+          turmaEl.innerText = "--";
+          descEl.innerText = "Confirme seu voto em branco.";
+          photoBox.innerHTML = `<i data-lucide="minus-circle" class="w-12 h-12 text-slate-300"></i>`;
+          lucide.createIcons();
+          return;
+        }
+
+        const isComplete = this.currentDigits.length === this.currentPosition.digits;
+
+        if (!isComplete) {
+          nameEl.innerText = "--";
+          turmaEl.innerText = "--";
+          descEl.innerText = "Digite os " + this.currentPosition.digits + " dígitos do candidato...";
+          photoBox.innerHTML = `<i data-lucide="user" class="w-12 h-12 text-slate-300"></i>`;
+          lucide.createIcons();
+          return;
+        }
+
+        // Complete digit count entered - Search candidate
+        const db = this.app.storage.getData();
+        const cand = db.candidates.find(c => c.positionId === this.currentPosition.id && c.number === this.currentDigits && c.active);
+
+        if (cand) {
+          nameEl.innerText = cand.ballotName;
+          turmaEl.innerText = cand.className;
+          descEl.innerText = cand.description || cand.name;
+          if (cand.photo) {
+            photoBox.innerHTML = `<img src="${cand.photo}" alt="Foto" class="w-full h-full object-cover">`;
+          } else {
+            photoBox.innerHTML = `<div class="w-full h-full bg-slate-300 text-slate-600 font-bold flex items-center justify-center text-xl">${cand.ballotName.substring(0,2).toUpperCase()}</div>`;
+          }
+        } else {
+          nullNotice.classList.remove('hidden');
+          nameEl.innerText = "NÚMERO NÃO ENCONTRADO";
+          turmaEl.innerText = "--";
+          descEl.innerText = "Este voto será registrado como NULO.";
+          photoBox.innerHTML = `<i data-lucide="help-circle" class="w-12 h-12 text-amber-400"></i>`;
+          lucide.createIcons();
+        }
+      }
+
+      pressConfirma() {
+        if (!this.currentPosition) return;
+
+        const isComplete = this.currentDigits.length === this.currentPosition.digits;
+        if (!isComplete && !this.isBlank) {
+          this.app.toast('Complete todos os dígitos antes de confirmar.');
+          return;
+        }
+
+        // Determine vote type
+        let type = 'VALID';
+        let candidateId = null;
+
+        if (this.isBlank) {
+          type = 'BLANK';
+        } else {
+          const db = this.app.storage.getData();
+          const cand = db.candidates.find(c => c.positionId === this.currentPosition.id && c.number === this.currentDigits && c.active);
+          if (cand) {
+            candidateId = cand.id;
+          } else {
+            type = 'NULL';
+          }
+        }
+
+        // Store vote in temporary buffer
+        this.votesBuffer.push({
+          positionId: this.currentPosition.id,
+          candidateId: candidateId,
+          type: type
+        });
+
+        // Advance step or finalize
+        if (this.currentStepIndex < this.activePositions.length - 1) {
+          this.app.audio.playConfirmBeep();
+          this.currentStepIndex++;
+          this.loadCurrentStep();
+        } else {
+          this.finalizeVotingSession();
+        }
+      }
+
+      finalizeVotingSession() {
+        this.app.audio.playFinalUrnaBeep();
+        
+        // Save votes to Storage Service
+        const db = this.app.storage.getData();
+
+        if (!this.isDemo) {
+          this.votesBuffer.forEach(v => {
+            db.votes.push({
+              id: 'vote-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+              voterId: this.activeVoter.id,
+              positionId: v.positionId,
+              candidateId: v.candidateId,
+              type: v.type,
+              createdAt: new Date().toISOString()
+            });
+          });
+
+          // Mark voter as voted
+          const vIdx = db.voters.findIndex(v => v.id === this.activeVoter.id);
+          if (vIdx !== -1) {
+            db.voters[vIdx].voted = true;
+            db.voters[vIdx].votedAt = new Date().toISOString();
+          }
+
+          this.app.storage.saveData(db);
+          this.app.storage.logAction('VOTO_REGISTRADO', `Código ${this.activeVoter.code} concluiu a votação.`);
+        } else {
+          this.app.toast('Votação demonstrativa concluída sem registro em banco.');
+        }
+
+        // Show FIM screen
+        document.getElementById('urna-fim-screen').classList.remove('hidden');
+
+        setTimeout(() => {
+          this.resetTerminalState();
+          this.app.refreshAllViews();
+        }, 4000);
+      }
+
+      resetTerminalState() {
+        document.getElementById('voter-code-input').value = "";
+        document.getElementById('urna-machine').classList.add('hidden');
+        document.getElementById('terminal-login').classList.remove('hidden');
+        this.activeVoter = null;
+        this.currentStepIndex = 0;
+        this.currentPosition = null;
+        this.votesBuffer = [];
+      }
+    }
+
+    /* ==========================================================================
+       ADMINISTRATIVE DASHBOARD CONTROLLER
+       ========================================================================== */
+    class AdminController {
+      constructor(app) {
+        this.app = app;
+        this.authenticated = true; // Local simulation mode
+        this.chartVoteTypes = null;
+        this.chartClassPart = null;
+      }
+
+      login(event) {
+        event.preventDefault();
+        const u = document.getElementById('admin-user').value;
+        const p = document.getElementById('admin-pass').value;
+        if (u === 'admin' && p === 'admin123') {
+          this.authenticated = true;
+          document.getElementById('admin-login-modal').classList.add('hidden');
+          this.app.toast('Autenticado como Administrador.');
+          this.renderDashboard();
+        } else {
+          this.app.toast('Credenciais inválidas.');
+        }
+      }
+
+      switchTab(tabName) {
+        document.querySelectorAll('.admin-subtab').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`admin-tab-${tabName}`).classList.remove('hidden');
+
+        if (tabName === 'dashboard') this.renderDashboard();
+        if (tabName === 'candidates') this.renderCandidatesTable();
+        if (tabName === 'positions') this.renderPositionsList();
+        if (tabName === 'voters') this.renderVotersTable();
+        if (tabName === 'results') this.renderResultsPage();
+        if (tabName === 'settings') this.renderSettingsPage();
+      }
+
+      renderDashboard() {
+        const db = this.app.storage.getData();
+        const totalVoters = db.voters.length;
+        const votedCount = db.voters.filter(v => v.voted).length;
+        const percent = totalVoters > 0 ? Math.round((votedCount / totalVoters) * 100) : 0;
+
+        document.getElementById('kpi-status').innerHTML = db.election.status === 'IN_PROGRESS' 
+          ? `<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span> EM ANDAMENTO`
+          : `<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> ${db.election.status}`;
+        
+        document.getElementById('kpi-participation').innerText = `${percent}%`;
+        document.getElementById('kpi-participation-sub').innerText = `${votedCount} de ${totalVoters} eleitores`;
+
+        const totalVotes = db.votes.length;
+        document.getElementById('kpi-votes').innerText = totalVotes;
+
+        const valid = db.votes.filter(v => v.type === 'VALID').length;
+        const blank = db.votes.filter(v => v.type === 'BLANK').length;
+        const nullVotes = db.votes.filter(v => v.type === 'NULL').length;
+
+        document.getElementById('kpi-valid').innerText = valid;
+        document.getElementById('kpi-blank').innerText = blank;
+        document.getElementById('kpi-null').innerText = nullVotes;
+
+        this.renderCharts(valid, blank, nullVotes, votedCount, totalVoters - votedCount);
+      }
+
+      renderCharts(valid, blank, nullVotes, voted, remaining) {
+        // Pie Chart: Vote Distribution
+        const ctxPie = document.getElementById('chart-vote-types').getContext('2d');
+        if (this.chartVoteTypes) this.chartVoteTypes.destroy();
+        this.chartVoteTypes = new Chart(ctxPie, {
+          type: 'doughnut',
+          data: {
+            labels: ['Válidos', 'Brancos', 'Nulos'],
+            datasets: [{
+              data: [valid, blank, nullVotes],
+              backgroundColor: ['#2a9d8f', '#94a3b8', '#f4a261']
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // Bar Chart: Participation
+        const ctxBar = document.getElementById('chart-class-participation').getContext('2d');
+        if (this.chartClassPart) this.chartClassPart.destroy();
+        this.chartClassPart = new Chart(ctxBar, {
+          type: 'bar',
+          data: {
+            labels: ['Participaram', 'Aguardando'],
+            datasets: [{
+              label: 'Eleitores',
+              data: [voted, remaining],
+              backgroundColor: ['#1d4ed8', '#cbd5e1']
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+      }
+
+      /* Candidate CRUD */
+      renderCandidatesTable() {
+        const db = this.app.storage.getData();
+        const tbody = document.getElementById('candidate-table-body');
+        tbody.innerHTML = "";
+
+        db.candidates.forEach(c => {
+          const pos = db.positions.find(p => p.id === c.positionId);
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-50";
+          tr.innerHTML = `
+            <td class="p-3">
+              <div class="w-8 h-8 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-600">
+                ${c.photo ? `<img src="${c.photo}" class="w-full h-full object-cover">` : c.ballotName.substring(0,2)}
+              </div>
+            </td>
+            <td class="p-3 font-mono font-bold text-slate-800">${c.number}</td>
+            <td class="p-3 font-semibold">${c.ballotName} <span class="text-[10px] text-slate-400 block">${c.name}</span></td>
+            <td class="p-3">${pos ? pos.name : '--'}</td>
+            <td class="p-3">${c.className}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${c.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}">${c.active ? 'Ativo' : 'Inativo'}</span></td>
+            <td class="p-3 text-right">
+              <button onclick="app.admin.deleteCandidate('${c.id}')" class="text-rose-600 hover:text-rose-800 font-bold text-[11px]">Excluir</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      openCandidateModal() {
+        const db = this.app.storage.getData();
+        const posSelect = document.getElementById('cand-position');
+        posSelect.innerHTML = "";
+        db.positions.forEach(p => {
+          posSelect.innerHTML += `<option value="${p.id}">${p.name} (${p.digits} dígitos)</option>`;
+        });
+        this.updateDigitHint();
+        document.getElementById('modal-candidate').classList.remove('hidden');
+      }
+
+      updateDigitHint() {
+        const db = this.app.storage.getData();
+        const posId = document.getElementById('cand-position').value;
+        const pos = db.positions.find(p => p.id === posId);
+        if (pos) {
+          document.getElementById('cand-digit-hint').innerText = `(Requer exatos ${pos.digits} dígitos)`;
+        }
+      }
+
+      saveCandidate(event) {
+        event.preventDefault();
+        const db = this.app.storage.getData();
+        const posId = document.getElementById('cand-position').value;
+        const pos = db.positions.find(p => p.id === posId);
+        const number = document.getElementById('cand-number').value.trim();
+
+        if (pos && number.length !== pos.digits) {
+          this.app.toast(`O número deve conter exatamente ${pos.digits} dígitos para este cargo.`);
+          return;
+        }
+
+        // Duplicate number check
+        const exists = db.candidates.some(c => c.positionId === posId && c.number === number);
+        if (exists) {
+          this.app.toast('Este número já está cadastrado para outro candidato neste cargo.');
+          return;
+        }
+
+        db.candidates.push({
+          id: 'cand-' + Date.now(),
+          name: document.getElementById('cand-fullname').value,
+          ballotName: document.getElementById('cand-ballotname').value,
+          number: number,
+          positionId: posId,
+          className: document.getElementById('cand-turma').value,
+          description: document.getElementById('cand-desc').value,
+          photo: document.getElementById('cand-photo').value,
+          active: true
+        });
+
+        this.app.storage.saveData(db);
+        this.app.storage.logAction('CANDIDATO_CADASTRADO', `Novo candidato ${number} adicionado.`);
+        this.closeModal('modal-candidate');
+        this.renderCandidatesTable();
+        this.app.toast('Candidato cadastrado com sucesso!');
+      }
+
+      deleteCandidate(id) {
+        let db = this.app.storage.getData();
+        db.candidates = db.candidates.filter(c => c.id !== id);
+        this.app.storage.saveData(db);
+        this.renderCandidatesTable();
+        this.app.toast('Candidato removido.');
+      }
+
+      /* Positions CRUD & Drag Order */
+      renderPositionsList() {
+        const db = this.app.storage.getData();
+        const container = document.getElementById('positions-list');
+        container.innerHTML = "";
+
+        db.positions.sort((a,b) => a.order - b.order).forEach((p, idx) => {
+          const div = document.createElement('div');
+          div.className = "bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm";
+          div.innerHTML = `
+            <div class="flex items-center gap-3">
+              <span class="font-mono text-xs font-bold text-slate-400">#${p.order}</span>
+              <div>
+                <span class="font-bold text-slate-800 text-sm">${p.name}</span>
+                <span class="text-xs text-slate-500 block">${p.digits} dígitos | ${p.votesAllowed} voto(s) por eleitor</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="app.admin.movePosition('${p.id}', 'up')" ${idx === 0 ? 'disabled' : ''} class="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"><i data-lucide="arrow-up" class="w-4 h-4"></i></button>
+              <button onclick="app.admin.movePosition('${p.id}', 'down')" ${idx === db.positions.length - 1 ? 'disabled' : ''} class="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"><i data-lucide="arrow-down" class="w-4 h-4"></i></button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+        lucide.createIcons();
+      }
+
+      movePosition(id, dir) {
+        let db = this.app.storage.getData();
+        const pos = db.positions.sort((a,b) => a.order - b.order);
+        const idx = pos.findIndex(p => p.id === id);
+        if (idx === -1) return;
+
+        if (dir === 'up' && idx > 0) {
+          const temp = pos[idx].order;
+          pos[idx].order = pos[idx-1].order;
+          pos[idx-1].order = temp;
+        } else if (dir === 'down' && idx < pos.length - 1) {
+          const temp = pos[idx].order;
+          pos[idx].order = pos[idx+1].order;
+          pos[idx+1].order = temp;
+        }
+
+        this.app.storage.saveData(db);
+        this.renderPositionsList();
+      }
+
+      openPositionModal() {
+        document.getElementById('modal-position').classList.remove('hidden');
+      }
+
+      savePosition(event) {
+        event.preventDefault();
+        const db = this.app.storage.getData();
+        db.positions.push({
+          id: 'pos-' + Date.now(),
+          name: document.getElementById('pos-name').value,
+          digits: parseInt(document.getElementById('pos-digits').value),
+          votesAllowed: parseInt(document.getElementById('pos-votes').value),
+          order: db.positions.length + 1,
+          active: true
+        });
+        this.app.storage.saveData(db);
+        this.closeModal('modal-position');
+        this.renderPositionsList();
+        this.app.toast('Cargo adicionado com sucesso!');
+      }
+
+      /* Voter CRUD */
+      renderVotersTable() {
+        const db = this.app.storage.getData();
+        const tbody = document.getElementById('voter-table-body');
+        tbody.innerHTML = "";
+
+        db.voters.forEach(v => {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-50";
+          tr.innerHTML = `
+            <td class="p-3 font-mono font-bold text-slate-800">${v.code}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${v.voted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${v.voted ? 'Votou' : 'Pendente'}</span></td>
+            <td class="p-3 text-slate-500 text-[11px]">${v.votedAt ? new Date(v.votedAt).toLocaleString('pt-BR') : '--'}</td>
+            <td class="p-3 text-right">
+              <button onclick="app.admin.deleteVoter('${v.id}')" class="text-rose-600 hover:text-rose-800 font-bold text-[11px]">Excluir</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      generateBatchVoters() {
+        let db = this.app.storage.getData();
+        const start = 1000 + db.voters.length + 1;
+        for (let i = 0; i < 10; i++) {
+          const code = (start + i).toString();
+          if (!db.voters.some(v => v.code === code)) {
+            db.voters.push({ id: 'v-' + code, code: code, voted: false, votedAt: null });
+          }
+        }
+        this.app.storage.saveData(db);
+        this.renderVotersTable();
+        this.app.toast('10 novos códigos gerados com sucesso!');
+      }
+
+      openVoterModal() {
+        document.getElementById('modal-voter').classList.remove('hidden');
+      }
+
+      saveVoter(event) {
+        event.preventDefault();
+        const db = this.app.storage.getData();
+        const code = document.getElementById('voter-code-new').value.trim().toUpperCase();
+        if (db.voters.some(v => v.code === code)) {
+          this.app.toast('Este código já existe.');
+          return;
+        }
+        db.voters.push({ id: 'v-' + code, code: code, voted: false, votedAt: null });
+        this.app.storage.saveData(db);
+        this.closeModal('modal-voter');
+        this.renderVotersTable();
+        this.app.toast('Código de eleitor cadastrado.');
+      }
+
+      deleteVoter(id) {
+        let db = this.app.storage.getData();
+        db.voters = db.voters.filter(v => v.id !== id);
+        this.app.storage.saveData(db);
+        this.renderVotersTable();
+      }
+
+      /* Results and Tally Process */
+      runTallyAnimation() {
+        const box = document.getElementById('tally-progress-box');
+        const bar = document.getElementById('tally-progress-bar');
+        const text = document.getElementById('tally-status-text');
+
+        box.classList.remove('hidden');
+        bar.style.width = '0%';
+        text.innerText = "VALIDANDO REGISTROS DE VOTOS...";
+
+        setTimeout(() => {
+          bar.style.width = '50%';
+          text.innerText = "CONTABILIZANDO VOTOS VÁLIDOS, BRANCOS E NULOS...";
+        }, 1000);
+
+        setTimeout(() => {
+          bar.style.width = '100%';
+          text.innerText = "APURAÇÃO CONCLUÍDA COM SUCESSO!";
+        }, 2200);
+
+        setTimeout(() => {
+          box.classList.add('hidden');
+          this.renderResultsPage();
+          this.app.toast('Apuração finalizada!');
+        }, 3000);
+      }
+
+      renderResultsPage() {
+        const db = this.app.storage.getData();
+        const container = document.getElementById('results-container');
+        container.innerHTML = "";
+
+        db.positions.sort((a,b) => a.order - b.order).forEach(pos => {
+          const posVotes = db.votes.filter(v => v.positionId === pos.id);
+          const totalPosVotes = posVotes.length;
+
+          const card = document.createElement('div');
+          card.className = "bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4";
+          
+          let candidatesHtml = "";
+          const posCandidates = db.candidates.filter(c => c.positionId === pos.id);
+
+          posCandidates.forEach(cand => {
+            const candVotes = posVotes.filter(v => v.type === 'VALID' && v.candidateId === cand.id).length;
+            const percent = totalPosVotes > 0 ? ((candVotes / totalPosVotes) * 100).toFixed(1) : 0;
+
+            candidatesHtml += `
+              <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 bg-slate-200 rounded-full font-bold flex items-center justify-center text-xs">
+                    ${cand.ballotName.substring(0,2)}
+                  </div>
+                  <div>
+                    <span class="font-bold text-slate-800 text-sm">${cand.ballotName} (${cand.number})</span>
+                    <span class="text-xs text-slate-500 block">${cand.className}</span>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span class="font-bold text-slate-800 text-sm">${candVotes} votos</span>
+                  <span class="text-xs font-semibold text-brand-600 block">${percent}%</span>
+                </div>
+              </div>
+            `;
+          });
+
+          const blankCount = posVotes.filter(v => v.type === 'BLANK').length;
+          const nullCount = posVotes.filter(v => v.type === 'NULL').length;
+
+          card.innerHTML = `
+            <div class="flex justify-between items-center border-b pb-2">
+              <h4 class="font-bold text-slate-800 text-base">${pos.name}</h4>
+              <span class="text-xs font-bold text-slate-500">Total Votos: ${totalPosVotes}</span>
+            </div>
+            <div class="space-y-2">
+              ${candidatesHtml}
+            </div>
+            <div class="flex items-center justify-between text-xs text-slate-500 pt-2 border-t">
+              <span>Votos em Branco: <strong class="text-slate-700">${blankCount}</strong></span>
+              <span>Votos Nulos: <strong class="text-slate-700">${nullCount}</strong></span>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      /* Settings & Actions */
+      renderSettingsPage() {
+        const db = this.app.storage.getData();
+        document.getElementById('setting-name').value = db.election.name;
+        document.getElementById('setting-desc').value = db.election.description;
+        document.getElementById('setting-status').value = db.election.status;
+        document.getElementById('setting-hide-live').checked = !!db.election.hideLiveResults;
+
+        const logContainer = document.getElementById('audit-logs-list');
+        logContainer.innerHTML = "";
+        db.auditLogs.slice(0, 15).forEach(log => {
+          logContainer.innerHTML += `<div>[${new Date(log.timestamp).toLocaleTimeString()}] <strong>${log.action}</strong>: ${log.details}</div>`;
+        });
+      }
+
+      saveElectionSettings(event) {
+        event.preventDefault();
+        let db = this.app.storage.getData();
+        db.election.name = document.getElementById('setting-name').value;
+        db.election.description = document.getElementById('setting-desc').value;
+        db.election.status = document.getElementById('setting-status').value;
+        db.election.hideLiveResults = document.getElementById('setting-hide-live').checked;
+
+        this.app.storage.saveData(db);
+        this.app.storage.logAction('CONFIG_ALTERADA', 'Configurações de eleição atualizadas.');
+        this.app.toast('Configurações salvas.');
+        this.app.refreshAllViews();
+      }
+
+      loadDemoSeedData() {
+        const seed = this.app.storage.getSeedData();
+        this.app.storage.saveData(seed);
+        this.app.toast('Dados de demonstração recarregados com sucesso.');
+        this.app.refreshAllViews();
+      }
+
+      openResetModal() {
+        document.getElementById('reset-confirm-word').value = "";
+        document.getElementById('modal-reset').classList.remove('hidden');
+      }
+
+      executeReset() {
+        const word = document.getElementById('reset-confirm-word').value.trim().toUpperCase();
+        if (word === 'CONFIRMA' || word === 'CONFIRMAR') {
+          let db = this.app.storage.getData();
+          db.votes = [];
+          db.voters.forEach(v => { v.voted = false; v.votedAt = null; });
+          this.app.storage.saveData(db);
+          this.app.storage.logAction('RESET_VOTACAO', 'Todos os votos foram apagados.');
+          this.closeModal('modal-reset');
+          this.app.toast('Votação restaurada a zero com sucesso.');
+          this.app.refreshAllViews();
+        } else {
+          this.app.toast('Palavra de confirmação incorreta.');
+        }
+      }
+
+      exportResults(format) {
+        const db = this.app.storage.getData();
+        if (format === 'csv') {
+          let csv = "Cargo,Candidato,Numero,TipoVoto,TotalVotos\n";
+          db.positions.forEach(pos => {
+            const pVotes = db.votes.filter(v => v.positionId === pos.id);
+            db.candidates.filter(c => c.positionId === pos.id).forEach(cand => {
+              const count = pVotes.filter(v => v.type === 'VALID' && v.candidateId === cand.id).length;
+              csv += `"${pos.name}","${cand.ballotName}","${cand.number}","VALIDO",${count}\n`;
+            });
+            csv += `"${pos.name}","BRANCO","","BRANCO",${pVotes.filter(v => v.type === 'BLANK').length}\n`;
+            csv += `"${pos.name}","NULO","","NULO",${pVotes.filter(v => v.type === 'NULL').length}\n`;
+          });
+
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `resultado_eleicao_escolar_${Date.now()}.csv`;
+          a.click();
+        }
+      }
+
+      closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+      }
+    }
+
+    /* ==========================================================================
+       FISCAL / TEACHER MONITORING CONTROLLER
+       ========================================================================== */
+    class FiscalController {
+      constructor(app) {
+        this.app = app;
+        this.selectedPositionId = null;
+      }
+
+      render() {
+        const db = this.app.storage.getData();
+        const totalVoters = db.voters.length;
+        const votedCount = db.voters.filter(v => v.voted).length;
+        const percent = totalVoters > 0 ? Math.round((votedCount / totalVoters) * 100) : 0;
+
+        document.getElementById('fiscal-percent-text').innerText = `${percent}%`;
+        document.getElementById('fiscal-bar').style.width = `${percent}%`;
+        document.getElementById('fiscal-voted-count').innerText = votedCount;
+        document.getElementById('fiscal-total-count').innerText = totalVoters;
+
+        // Position tabs
+        const tabsContainer = document.getElementById('fiscal-position-tabs');
+        tabsContainer.innerHTML = "";
+
+        db.positions.sort((a,b) => a.order - b.order).forEach((pos, idx) => {
+          if (!this.selectedPositionId && idx === 0) this.selectedPositionId = pos.id;
+          const btn = document.createElement('button');
+          btn.className = `px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 ${this.selectedPositionId === pos.id ? 'bg-brand-500 text-white' : 'bg-slate-100 text-slate-700'}`;
+          btn.innerText = pos.name;
+          btn.onclick = () => {
+            this.selectedPositionId = pos.id;
+            this.render();
+          };
+          tabsContainer.appendChild(btn);
+        });
+
+        // Live candidate count list
+        const candidatesContainer = document.getElementById('fiscal-candidates-list');
+        const privacyNotice = document.getElementById('fiscal-privacy-notice');
+        candidatesContainer.innerHTML = "";
+
+        if (db.election.hideLiveResults && db.election.status === 'IN_PROGRESS') {
+          privacyNotice.classList.remove('hidden');
+          candidatesContainer.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 italic">As parciais detalhadas por candidato estão temporariamente ocultas para preservar o sigilo.</div>`;
+          return;
+        } else {
+          privacyNotice.classList.add('hidden');
+        }
+
+        if (this.selectedPositionId) {
+          const posVotes = db.votes.filter(v => v.positionId === this.selectedPositionId);
+          const cands = db.candidates.filter(c => c.positionId === this.selectedPositionId);
+
+          cands.forEach(cand => {
+            const votes = posVotes.filter(v => v.type === 'VALID' && v.candidateId === cand.id).length;
+            const div = document.createElement('div');
+            div.className = "flex items-center justify-between p-2.5 bg-slate-50 rounded-lg text-xs";
+            div.innerHTML = `
+              <span class="font-bold text-slate-800">${cand.ballotName} (${cand.number})</span>
+              <span class="font-extrabold text-brand-600 bg-brand-50 px-2 py-1 rounded">${votes} votos</span>
+            `;
+            candidatesContainer.appendChild(div);
+          });
+        }
+      }
+    }
+
+    /* ==========================================================================
+       MAIN APPLICATION FACADE
+       ========================================================================== */
+    class App {
+      constructor() {
+        this.storage = new StorageService();
+        this.audio = new AudioService();
+        this.terminal = new TerminalController(this);
+        this.admin = new AdminController(this);
+        this.fiscal = new FiscalController(this);
+      }
+
+      init() {
+        lucide.createIcons();
+        this.terminal.init();
+        this.refreshAllViews();
+
+        // Keyboard navigation binding for Urna physical simulation
+        window.addEventListener('keydown', (e) => {
+          const terminalView = document.getElementById('view-terminal');
+          const urnaMachine = document.getElementById('urna-machine');
+
+          if (
+            terminalView && !terminalView.classList.contains('hidden') &&
+            urnaMachine && !urnaMachine.classList.contains('hidden') &&
+            this.terminal.currentPosition
+          ) {
+            if (e.key >= '0' && e.key <= '9') this.terminal.pressKey(e.key);
+            if (e.key === 'Enter') this.terminal.pressConfirma();
+            if (e.key === 'Backspace' || e.key === 'Escape') this.terminal.pressCorrige();
+          }
+        });
+      }
+
+      switchView(viewName) {
+        document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+        // Navigation visual state
+        document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('bg-slate-800', 'text-brand-300'));
+        const activeNav = document.getElementById(`nav-btn-${viewName}`);
+        if (activeNav) activeNav.classList.add('bg-slate-800', 'text-brand-300');
+
+        if (viewName === 'admin') this.admin.renderDashboard();
+        if (viewName === 'fiscal') this.fiscal.render();
+      }
+
+      toggleMobileNav() {
+        document.getElementById('mobile-nav').classList.toggle('hidden');
+      }
+
+      refreshAllViews() {
+        const db = this.storage.getData();
+        document.getElementById('election-name-tag').innerText = db.election.name;
+        this.admin.renderDashboard();
+        this.fiscal.render();
+      }
+
+      toast(msg) {
+        const toastEl = document.createElement('div');
+        toastEl.className = "fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl z-50 transition-all duration-300 flex items-center gap-2 border border-slate-700";
+        toastEl.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-brand-400"></i> ${msg}`;
+        document.body.appendChild(toastEl);
+        lucide.createIcons();
+        setTimeout(() => toastEl.remove(), 3500);
+      }
+    }
+
+    // Global App Instantiation
+    let app;
+    window.onload = () => {
+      app = new App();
+      app.init();
+    };
+  </script>
+</body>
+</html>
